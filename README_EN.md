@@ -30,3 +30,25 @@ pip install flask
 python kindle_server.py
 ```
 
+---
+
+### [Universal-Video-Subtitle-Mask](./Universal-Video-Subtitle-Mask)
+
+**Universal Video Subtitle Mask (Chrome Extension)**
+
+A zero-permission Chrome extension that masks burned-in (hardcoded) subtitles inside the video frame — for example, hiding the Chinese subtitle while learning English so you rely purely on listening; also handy for covering any fixed text on screen.
+
+- Manifest V3, zero permissions, zero dependencies, all code runs locally
+- Works on Bilibili, YouTube, Netflix, TED, Coursera
+- Draggable mask with 3-direction resizing (right / bottom / corner); double-click it to open a control bar (width / height / opacity / center)
+- 4 built-in themes (Galaxy Purple / Pastel Rainbow / Matte Black / Frosted Slate) + custom color picker
+- Floating control pill on the right edge: toggle mask, cycle themes, pick color, switch UI language (EN / 中文), collapse into screen edge
+- Shortcuts: `C` cycle theme · `Alt+H` / `Ctrl+Shift+H` collapse pill · `Alt+[` / `Alt+]` width · `Alt+-` / `Alt+=` height · `Alt+0` center · `Alt+M` / `Ctrl+Shift+X` show/hide mask
+- Auto-adapts to fullscreen and window resizing
+
+**Install:**
+```bash
+# Open chrome://extensions in your browser
+# Enable "Developer mode" → "Load unpacked" → select the Universal-Video-Subtitle-Mask folder
+```
+
