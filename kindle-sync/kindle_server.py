@@ -3,11 +3,11 @@ import logging
 import os
 import re
 import subprocess
+import threading
 import time
 from urllib.parse import quote
 try:
     from flask import Flask, render_template_string, Response, abort # type: ignore
-    from werkzeug.exceptions import HTTPException
 except ModuleNotFoundError as exc:
     if exc.name != "flask":
         raise
@@ -15,8 +15,9 @@ except ModuleNotFoundError as exc:
         "Flask is not installed. Install it with: python -m pip install Flask"
     ) from exc
 
-# 配置项 - 请确认路径正确
-BOOKS_FOLDER = r"KindleBooks"  # 你的电子书目录
+# 书籍目录固定在脚本所在目录，避免从其他工作目录启动时扫描错位置
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BOOKS_FOLDER = os.path.join(SCRIPT_DIR, "KindleBooks")
 ALLOWED_EXTENSIONS = {'mobi', 'epub', 'azw3', 'pdf', 'txt'}
 HOST = '0.0.0.0'
 PORT = 5000
@@ -27,6 +28,8 @@ app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB限制
 
 # 当前扫描到的书籍列表
 books_list = []
+books_signature = None
+books_lock = threading.Lock()
 
 FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 <rect width="64" height="64" rx="14" fill="#27ae60"/>
@@ -90,29 +93,70 @@ def get_local_ip():
 
 # 刷新书籍列表
 def init_books_list():
-    global books_list
-    if not os.path.exists(BOOKS_FOLDER):
-        os.makedirs(BOOKS_FOLDER)
-    
-    # 严格排序，手动分配后台ID（0开始）
-    file_list = sorted(os.listdir(BOOKS_FOLDER), key=lambda x: x.lower())
-    updated_books = []
-    current_id = 0
-    for file in file_list:
-        if '.' in file and file.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS:
-            file_path = os.path.join(BOOKS_FOLDER, file)
-            if os.path.isfile(file_path):
-                file_size = os.path.getsize(file_path) / (1024*1024)
-                updated_books.append({
-                    'id': current_id,          # 后台固定ID（不显示）
-                    'name': file,              # 仅显示文件名
-                    'download_name': quote(file, safe=''),
-                    'size': f"{file_size:.2f} MB",
-                    'path': file_path,
-                    'size_bytes': os.path.getsize(file_path)
-                })
-                current_id += 1
-    books_list = updated_books
+    global books_list, books_signature
+    with books_lock:
+        if not os.path.exists(BOOKS_FOLDER):
+            os.makedirs(BOOKS_FOLDER)
+
+        # 严格排序，手动分配后台ID（0开始）
+        file_list = sorted(os.listdir(BOOKS_FOLDER), key=lambda x: x.lower())
+        updated_books = []
+        updated_signature = []
+        current_id = 0
+        for file in file_list:
+            if '.' in file and file.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS:
+                file_path = os.path.join(BOOKS_FOLDER, file)
+                if os.path.isfile(file_path):
+                    file_stat = os.stat(file_path)
+                    file_size = file_stat.st_size / (1024*1024)
+                    updated_books.append({
+                        'id': current_id,          # 后台固定ID（不显示）
+                        'name': file,              # 仅显示文件名
+                        'download_name': quote(file, safe=''),
+                        'size': f"{file_size:.2f} MB",
+                        'path': file_path,
+                        'size_bytes': file_stat.st_size
+                    })
+                    updated_signature.append(
+                        (file, file_stat.st_size, file_stat.st_mtime_ns)
+                    )
+                    current_id += 1
+
+        updated_signature = tuple(updated_signature)
+        if books_signature is not None and updated_signature != books_signature:
+            previous_files = {
+                name: (size, modified)
+                for name, size, modified in books_signature
+            }
+            current_files = {
+                name: (size, modified)
+                for name, size, modified in updated_signature
+            }
+            added = sorted(current_files.keys() - previous_files.keys())
+            removed = sorted(previous_files.keys() - current_files.keys())
+            changed = sorted(
+                name for name in previous_files.keys() & current_files.keys()
+                if previous_files[name] != current_files[name]
+            )
+
+            print("\n📚 书籍目录已更新", flush=True)
+            print(f"  目录：{BOOKS_FOLDER}", flush=True)
+            print(f"  书籍总数：{len(updated_books)} 本", flush=True)
+            if added:
+                print(f"  新增：{'、'.join(added)}", flush=True)
+            if removed:
+                print(f"  移除：{'、'.join(removed)}", flush=True)
+            if changed:
+                print(f"  文件变化：{'、'.join(changed)}", flush=True)
+
+        books_list = updated_books
+        books_signature = updated_signature
+
+
+def watch_books_folder():
+    while True:
+        time.sleep(2)
+        init_books_list()
 
 # 分块传输文件
 def stream_file(file_path):
@@ -207,7 +251,8 @@ HTML_TEMPLATE = """
     <div class="container">
         <h1> Kindle 书籍库</h1>
         <div class="header-info">
-            共 {{ total }} 本电子书 | 每 30 秒自动刷新
+            共 {{ total }} 本电子书 | 每 30 秒自动刷新 |
+            <a href="/" style="color:#27ae60;">立即刷新</a>
         </div>
         
         {% if books %}
@@ -282,9 +327,9 @@ def download_file(file_name):
         
         return Response(stream_file(file_path), headers=headers)
     
-    except HTTPException:
-        raise
     except Exception as e:
+        if getattr(e, 'code', None) is not None:
+            raise
         abort(500, description=f"下载失败：{str(e)}")
 
 # 错误处理（简洁提示，不暴露ID）
@@ -320,7 +365,7 @@ if __name__ == '__main__':
         print(f" 访问地址：http://{local_ip}:{PORT}")
     else:
         print(" 未检测到局域网 IPv4 地址，请检查网络连接及 ifconfig 输出")
-    print(f" 书籍目录：{BOOKS_FOLDER}")
+    print(f" 书籍目录：{os.path.abspath(BOOKS_FOLDER)}")
     print(f" 书籍总数：{len(books_list)} 本")
     print("="*60)
     print(" 【后台ID对照表（仅开发者可见）】")
@@ -330,4 +375,9 @@ if __name__ == '__main__':
     
     # 保留请求日志和开发服务器警告，但只打印上面筛选出的局域网访问地址
     logging.getLogger("werkzeug").addFilter(WerkzeugAddressFilter())
+    threading.Thread(
+        target=watch_books_folder,
+        name="books-folder-watcher",
+        daemon=True
+    ).start()
     app.run(host=HOST, port=PORT, debug=False, threaded=True)
