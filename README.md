@@ -50,3 +50,5 @@ python kindle_server.py
 # 开启「开发者模式」→「加载已解压的扩展程序」→ 选择 Universal-Video-Subtitle-Mask 文件夹
 ```
 
+完整使用文档：[USAGE.md](./Universal-Video-Subtitle-Mask/USAGE.md) · [USAGE_EN.md（英文）](./Universal-Video-Subtitle-Mask/USAGE_EN.md)
+

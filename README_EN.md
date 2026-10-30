@@ -52,3 +52,5 @@ A zero-permission Chrome extension that masks burned-in (hardcoded) subtitles in
 # Enable "Developer mode" → "Load unpacked" → select the Universal-Video-Subtitle-Mask folder
 ```
 
+Full usage guide: [USAGE_EN.md](./Universal-Video-Subtitle-Mask/USAGE_EN.md) · [USAGE.md（中文）](./Universal-Video-Subtitle-Mask/USAGE.md)
+
