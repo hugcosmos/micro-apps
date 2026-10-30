@@ -30,12 +30,3 @@ pip install flask
 python kindle_server.py
 ```
 
----
-
-## Adding a new project
-
-Each new mini-app follows the same pattern:
-1. Create a new folder in the repo root
-2. Drop the project files in
-3. Add an entry under "Projects" in this README
-4. Update the Chinese README accordingly

@@ -28,12 +28,3 @@ pip install flask
 python kindle_server.py
 ```
 
----
-
-## 新增项目规范
-
-每加一个小项目：
-1. 在根目录新建独立文件夹
-2. 放入项目文件
-3. 在本 README 的「项目列表」中追加一条说明
-4. 同步更新英文版 README
