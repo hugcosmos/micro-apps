@@ -1,6 +1,10 @@
 # micro-apps
 
+[English](./README_EN.md) | 中文
+
 一些自用小工具 / 小应用合集，每个项目独立一个文件夹，解决特定的小问题。
+
+所有项目均采用 [MIT License](./LICENSE) 开源协议。
 
 ---
 
@@ -32,3 +36,4 @@ python kindle_server.py
 1. 在根目录新建独立文件夹
 2. 放入项目文件
 3. 在本 README 的「项目列表」中追加一条说明
+4. 同步更新英文版 README
